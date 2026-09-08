@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+/* Paleta cálida (arena + verde azulado), neomorfismo. Tema claro por defecto. */
+:root {
+  --bg: #eae5db;
+  --surface: #eae5db;
+  --text-primary: #362f26;
+  --text-secondary: #86795f;
+  --accent: #0f766e;
+  --accent-soft: #14958a;
+  --accent-contrast: #ffffff;
+  --danger: #c2410c;
+  --success: #15803d;
+  --shadow-light: #ffffff;
+  --shadow-dark: #c7bfac;
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 10px;
+}
+
+/* Tema oscuro por preferencia del sistema, salvo que el usuario haya elegido claro explícitamente */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #211f1a;
+    --surface: #211f1a;
+    --text-primary: #ece6d9;
+    --text-secondary: #a89c81;
+    --accent: #2dd4bf;
+    --accent-soft: #5eead4;
+    --accent-contrast: #0b1f1c;
+    --danger: #f97066;
+    --success: #4ade80;
+    --shadow-light: #2b2822;
+    --shadow-dark: #151310;
+  }
+}
+
+/* Tema oscuro forzado por el toggle, sin importar preferencia del sistema */
+:root[data-theme="dark"] {
+  --bg: #211f1a;
+  --surface: #211f1a;
+  --text-primary: #ece6d9;
+  --text-secondary: #a89c81;
+  --accent: #2dd4bf;
+  --accent-soft: #5eead4;
+  --accent-contrast: #0b1f1c;
+  --danger: #f97066;
+  --success: #4ade80;
+  --shadow-light: #2b2822;
+  --shadow-dark: #151310;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Utilidades de neomorfismo: superficies "extruidas" (relieve) o "presionadas" (hundidas) */
+.neo-raised {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    8px 8px 16px var(--shadow-dark),
+    -8px -8px 16px var(--shadow-light);
+}
+
+.neo-pressed {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow:
+    inset 4px 4px 8px var(--shadow-dark),
+    inset -4px -4px 8px var(--shadow-light);
+}
+
+.neo-flat {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow:
+    4px 4px 10px var(--shadow-dark),
+    -4px -4px 10px var(--shadow-light);
+}
+
+.neo-btn {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  box-shadow:
+    5px 5px 10px var(--shadow-dark),
+    -5px -5px 10px var(--shadow-light);
+  transition:
+    box-shadow 0.12s ease,
+    transform 0.12s ease;
+}
+
+.neo-btn:active {
+  box-shadow:
+    inset 3px 3px 6px var(--shadow-dark),
+    inset -3px -3px 6px var(--shadow-light);
+  transform: translateY(1px);
+}
+
+.neo-input {
+  background: var(--surface);
+  color: var(--text-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  box-shadow:
+    inset 3px 3px 6px var(--shadow-dark),
+    inset -3px -3px 6px var(--shadow-light);
+}
+
+.neo-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Sin flechas de incremento/decremento en inputs numéricos: en montos de
+   dinero, subir de a 1 con las flechas no tiene sentido y confunde. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
