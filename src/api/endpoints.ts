@@ -49,6 +49,11 @@ export async function uploadProfilePhoto(file: File): Promise<User> {
   return data;
 }
 
+export async function deleteProfilePhoto(): Promise<User> {
+  const { data } = await apiClient.delete("/users/me/profile-photo");
+  return data;
+}
+
 export async function updateProfile(payload: { username?: string; full_name?: string }): Promise<User> {
   const { data } = await apiClient.patch("/users/me", payload);
   return data;

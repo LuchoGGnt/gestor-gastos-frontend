@@ -1,5 +1,10 @@
 import { useRef, useState } from "react";
-import { changePassword, updateProfile, uploadProfilePhoto } from "../api/endpoints";
+import {
+  changePassword,
+  deleteProfilePhoto,
+  updateProfile,
+  uploadProfilePhoto,
+} from "../api/endpoints";
 import { extractErrorMessage } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -68,6 +73,19 @@ export default function SettingsPage() {
     }
   }
 
+  async function handlePhotoDelete() {
+    setPhotoError(null);
+    setPhotoLoading(true);
+    try {
+      const updated = await deleteProfilePhoto();
+      setUser(updated);
+    } catch (err) {
+      setPhotoError(extractErrorMessage(err));
+    } finally {
+      setPhotoLoading(false);
+    }
+  }
+
   async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
     setPasswordError(null);
@@ -102,14 +120,26 @@ export default function SettingsPage() {
               className="w-16 h-16 rounded-full object-cover neo-flat shrink-0"
             />
             <div>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="text-xs text-[var(--accent)]"
-                disabled={photoLoading}
-              >
-                {photoLoading ? "Subiendo..." : "Cambiar foto"}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs text-[var(--accent)]"
+                  disabled={photoLoading}
+                >
+                  {photoLoading ? "Procesando..." : "Cambiar foto"}
+                </button>
+                {user.profile_photo_media_id && (
+                  <button
+                    type="button"
+                    onClick={handlePhotoDelete}
+                    className="text-xs text-[var(--danger)]"
+                    disabled={photoLoading}
+                  >
+                    Quitar foto
+                  </button>
+                )}
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
