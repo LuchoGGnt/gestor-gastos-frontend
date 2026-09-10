@@ -174,6 +174,18 @@ export async function listWalletTransactions(walletId?: string): Promise<WalletT
   return data;
 }
 
+export async function updateWalletTransaction(
+  transactionId: string,
+  payload: { amount?: string; note?: string | null },
+): Promise<WalletTransaction> {
+  const { data } = await apiClient.patch(`/wallets/transactions/${transactionId}`, payload);
+  return data;
+}
+
+export async function deleteWalletTransaction(transactionId: string): Promise<void> {
+  await apiClient.delete(`/wallets/transactions/${transactionId}`);
+}
+
 // --- Expenses ---
 export interface ExpenseItemSplitInput {
   user_id: string;

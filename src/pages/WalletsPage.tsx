@@ -3,14 +3,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createWallet,
   deleteWallet,
+  deleteWalletTransaction,
   listWalletTransactions,
   listWallets,
   registerManualExpense,
   topUpWallet,
   updateWallet,
+  updateWalletTransaction,
   withdrawFromWallet,
 } from "../api/endpoints";
-import type { BankCode, Currency, Wallet, WalletKind, WalletTransactionType } from "../api/types";
+import type { BankCode, Currency, Wallet, WalletTransaction, WalletKind, WalletTransactionType } from "../api/types";
 import { extractErrorMessage } from "../api/client";
 import { ErrorText, FieldLabel, NeoButton, NeoCard, NeoInput, NeoSelect, PageHeader } from "../components/ui";
 import { PencilIcon, TrashIcon } from "../components/icons";
@@ -572,37 +574,9 @@ export default function WalletsPage() {
         )}
 
         <div className="flex flex-col gap-2">
-          {transactions?.map((tx) => {
-            const income = isIncome(tx.transaction_type);
-            const expense = isExpenseType(tx.transaction_type);
-            const sign = income ? "+" : expense ? "−" : "";
-            const colorClass = income
-              ? "text-[var(--success)]"
-              : expense
-                ? "text-[var(--danger)]"
-                : "text-[var(--text-primary)]";
-            return (
-              <div key={tx.id} className="neo-flat px-4 py-3 flex justify-between items-center gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm truncate">
-                    {TRANSACTION_LABELS[tx.transaction_type]} · {tx.wallet_label}
-                    {tx.related_account_name && (
-                      <span className="text-[var(--text-secondary)]"> · {tx.related_account_name}</span>
-                    )}
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)] truncate">
-                    {new Date(tx.created_at).toLocaleString()}
-                    {tx.related_description && ` · ${tx.related_description}`}
-                    {tx.note && ` · ${tx.note}`}
-                  </p>
-                </div>
-                <p className={`text-sm font-semibold whitespace-nowrap ${colorClass}`}>
-                  {sign}
-                  {tx.amount} {tx.currency}
-                </p>
-              </div>
-            );
-          })}
+          {transactions?.map((tx) => (
+            <TransactionRow key={tx.id} tx={tx} />
+          ))}
         </div>
       </NeoCard>
     </div>
@@ -782,5 +756,135 @@ function WalletDangerZone({
         </div>
       )}
     </NeoCard>
+  );
+}
+
+function TransactionRow({ tx }: { tx: WalletTransaction }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [amount, setAmount] = useState(tx.amount);
+  const [note, setNote] = useState(tx.note ?? "");
+  const [error, setError] = useState<string | null>(null);
+
+  // Solo los movimientos manuales (no ligados a un gasto de cuenta ni a un
+  // pago entre miembros) se pueden corregir directamente: esos otros se
+  // editan desde su propio flujo (gasto/settlement).
+  const correctable = !tx.related_account_name && !tx.related_description;
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["wallets"] });
+    queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: () => updateWalletTransaction(tx.id, { amount, note: note.trim() || null }),
+    onSuccess: () => {
+      setEditing(false);
+      invalidate();
+    },
+    onError: (err) => setError(extractErrorMessage(err)),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteWalletTransaction(tx.id),
+    onSuccess: () => invalidate(),
+    onError: (err) => setError(extractErrorMessage(err)),
+  });
+
+  function handleDelete() {
+    if (window.confirm("¿Borrar este movimiento? Se revertirá su efecto en el saldo de la cartera.")) {
+      deleteMutation.mutate();
+    }
+  }
+
+  const income = isIncome(tx.transaction_type);
+  const expense = isExpenseType(tx.transaction_type);
+  const sign = income ? "+" : expense ? "−" : "";
+  const colorClass = income
+    ? "text-[var(--success)]"
+    : expense
+      ? "text-[var(--danger)]"
+      : "text-[var(--text-primary)]";
+
+  if (editing) {
+    return (
+      <div className="neo-flat px-4 py-3 flex flex-col gap-2">
+        <p className="text-sm">
+          {TRANSACTION_LABELS[tx.transaction_type]} · {tx.wallet_label}
+        </p>
+        <div className="grid sm:grid-cols-3 gap-2 items-end">
+          <div>
+            <FieldLabel>Monto</FieldLabel>
+            <NeoInput type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          </div>
+          <div>
+            <FieldLabel>Nota</FieldLabel>
+            <NeoInput value={note} onChange={(e) => setNote(e.target.value)} />
+          </div>
+          <div className="flex gap-2">
+            <NeoButton
+              type="button"
+              variant="accent"
+              disabled={saveMutation.isPending}
+              onClick={() => {
+                setError(null);
+                saveMutation.mutate();
+              }}
+            >
+              Guardar
+            </NeoButton>
+            <NeoButton type="button" onClick={() => setEditing(false)}>
+              Cancelar
+            </NeoButton>
+          </div>
+        </div>
+        <ErrorText message={error} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="neo-flat px-4 py-3 flex justify-between items-center gap-3">
+      <div className="min-w-0">
+        <p className="text-sm truncate">
+          {TRANSACTION_LABELS[tx.transaction_type]} · {tx.wallet_label}
+          {tx.related_account_name && (
+            <span className="text-[var(--text-secondary)]"> · {tx.related_account_name}</span>
+          )}
+        </p>
+        <p className="text-xs text-[var(--text-secondary)] truncate">
+          {new Date(tx.created_at).toLocaleString()}
+          {tx.related_description && ` · ${tx.related_description}`}
+          {tx.note && ` · ${tx.note}`}
+        </p>
+        <ErrorText message={error} />
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <p className={`text-sm font-semibold whitespace-nowrap ${colorClass}`}>
+          {sign}
+          {tx.amount} {tx.currency}
+        </p>
+        {correctable && (
+          <>
+            <button
+              onClick={() => setEditing(true)}
+              title="Corregir movimiento"
+              aria-label="Corregir movimiento"
+              className="neo-btn w-7 h-7 rounded-full flex items-center justify-center cursor-pointer"
+            >
+              <PencilIcon className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleDelete}
+              title="Borrar movimiento"
+              aria-label="Borrar movimiento"
+              className="neo-btn w-7 h-7 rounded-full flex items-center justify-center text-[var(--danger)] cursor-pointer"
+            >
+              <TrashIcon className="w-3.5 h-3.5" />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
