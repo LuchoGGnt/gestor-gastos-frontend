@@ -51,7 +51,7 @@ function ProfileMenu({ collapsed }: { collapsed: boolean }) {
       <button
         ref={buttonRef}
         onClick={() => (menuPos ? setMenuPos(null) : openMenu())}
-        className={`neo-raised w-full flex items-center gap-3 hover:opacity-90 ${
+        className={`neo-raised w-full flex items-center gap-3 hover:opacity-90 transition-transform hover:-translate-y-0.5 ${
           // Padding más chico cuando está colapsado: con el padding normal
           // (p-4) el sidebar angosto (w-20) no alcanza a darle espacio a la
           // foto de perfil (40px) sin recortarla — se veía "distorsionada".
@@ -266,6 +266,12 @@ export default function Layout() {
   const { logout } = useAuth();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSE_KEY) === "1");
 
+  function handleLogout() {
+    if (window.confirm("¿Seguro que quieres cerrar sesión?")) {
+      logout();
+    }
+  }
+
   function toggleCollapsed() {
     setCollapsed((prev) => {
       const next = !prev;
@@ -309,7 +315,7 @@ export default function Layout() {
           </nav>
 
           <button
-            onClick={logout}
+            onClick={handleLogout}
             title={collapsed ? "Cerrar sesión" : undefined}
             className={`neo-btn px-4 py-3 text-sm mt-auto text-[var(--danger)] flex items-center gap-3 ${
               collapsed ? "justify-center" : ""
@@ -367,7 +373,7 @@ export default function Layout() {
           Perfil
         </NavLink>
         <button
-          onClick={logout}
+          onClick={handleLogout}
           className="flex flex-col items-center text-xs px-3 py-1.5 text-[var(--danger)]"
         >
           <LogoutIcon className="w-5 h-5" />
