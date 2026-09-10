@@ -136,6 +136,10 @@ export async function createWallet(payload: {
   return data;
 }
 
+export async function deleteWallet(walletId: string): Promise<void> {
+  await apiClient.delete(`/wallets/${walletId}`);
+}
+
 export async function topUpWallet(walletId: string, amount: string, note?: string) {
   const { data } = await apiClient.post(`/wallets/${walletId}/top-up`, { amount, note });
   return data;

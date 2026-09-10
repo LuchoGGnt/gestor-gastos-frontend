@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createWallet,
+  deleteWallet,
   listWalletTransactions,
   listWallets,
   registerManualExpense,
   topUpWallet,
 } from "../api/endpoints";
-import type { BankCode, Currency, WalletKind, WalletTransactionType } from "../api/types";
+import type { BankCode, Currency, Wallet, WalletKind, WalletTransactionType } from "../api/types";
 import { extractErrorMessage } from "../api/client";
 import { ErrorText, FieldLabel, NeoButton, NeoCard, NeoInput, NeoSelect, PageHeader } from "../components/ui";
 
@@ -115,6 +116,8 @@ export default function WalletsPage() {
     onError: (err) => setExpenseError(extractErrorMessage(err)),
   });
 
+  const selectedWallet = wallets?.find((w) => w.id === selectedWalletId) ?? null;
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Mi cartera" subtitle="Efectivo y digital en soles, dólares y pesos chilenos" />
@@ -159,6 +162,16 @@ export default function WalletsPage() {
           + Registrar gasto
         </NeoButton>
       </div>
+
+      {selectedWallet && (
+        <WalletDangerZone
+          wallet={selectedWallet}
+          onDeleted={() => {
+            setSelectedWalletId("");
+            queryClient.invalidateQueries({ queryKey: ["wallets"] });
+          }}
+        />
+      )}
 
       {activeForm === "create" && (
         <NeoCard>
@@ -394,5 +407,86 @@ export default function WalletsPage() {
         </div>
       </NeoCard>
     </div>
+  );
+}
+
+function WalletDangerZone({ wallet, onDeleted }: { wallet: Wallet; onDeleted: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [confirmLabel, setConfirmLabel] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const hasBalance = Number(wallet.balance) !== 0;
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteWallet(wallet.id),
+    onSuccess: () => onDeleted(),
+    onError: (err) => setError(extractErrorMessage(err)),
+  });
+
+  const labelMatches = confirmLabel.trim() === wallet.label;
+
+  function handleDelete() {
+    // Segunda confirmación: además de escribir el nombre exacto, un diálogo final.
+    if (!labelMatches) return;
+    if (
+      window.confirm(
+        `Vas a eliminar la cartera "${wallet.label}" de forma permanente. Esta acción no se puede deshacer. ¿Continuar?`,
+      )
+    ) {
+      deleteMutation.mutate();
+    }
+  }
+
+  return (
+    <NeoCard className="border-l-4 border-[var(--danger)]">
+      <p className="text-sm font-semibold mb-1">Eliminar cartera "{wallet.label}"</p>
+      <p className="text-[11px] text-[var(--text-secondary)] mb-3">
+        Solo es posible si la cartera no tiene saldo (0 {wallet.currency}). La eliminación es permanente.
+      </p>
+
+      {hasBalance ? (
+        <p className="text-xs text-[var(--danger)]">
+          Esta cartera tiene saldo ({wallet.balance} {wallet.currency}). Retira o transfiere el dinero antes
+          de poder eliminarla.
+        </p>
+      ) : !open ? (
+        <NeoButton variant="danger" onClick={() => setOpen(true)}>
+          Eliminar cartera
+        </NeoButton>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div>
+            <FieldLabel>
+              Escribe el nombre de la cartera (<strong>{wallet.label}</strong>) para confirmar
+            </FieldLabel>
+            <NeoInput
+              value={confirmLabel}
+              onChange={(e) => setConfirmLabel(e.target.value)}
+              placeholder={wallet.label}
+            />
+          </div>
+          <div className="flex gap-3">
+            <NeoButton
+              variant="danger"
+              disabled={!labelMatches || deleteMutation.isPending}
+              onClick={handleDelete}
+            >
+              Confirmar eliminación
+            </NeoButton>
+            <NeoButton
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setConfirmLabel("");
+                setError(null);
+              }}
+            >
+              Cancelar
+            </NeoButton>
+          </div>
+          <ErrorText message={error} />
+        </div>
+      )}
+    </NeoCard>
   );
 }
