@@ -1,9 +1,20 @@
 import { useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, NavLink, Outlet } from "react-router-dom";
+import { getNotifications } from "../api/endpoints";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import AuthImage from "./AuthImage";
-import { ChevronLeftIcon, ChevronRightIcon, ExchangeIcon, HomeIcon, LogoutIcon, UserIcon, WalletIcon } from "./icons";
+import {
+  BellIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ExchangeIcon,
+  HomeIcon,
+  LogoutIcon,
+  UserIcon,
+  WalletIcon,
+} from "./icons";
 import ErrorBoundary from "./ErrorBoundary";
 
 const NAV_ITEMS = [
@@ -101,6 +112,156 @@ function ProfileMenu({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+function NotificationsMenu({
+  variant,
+}: {
+  variant: { kind: "sidebar"; collapsed: boolean } | { kind: "mobile" };
+}) {
+  const [menuPos, setMenuPos] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Se calculan en vivo a partir de los settlements/balances existentes: no
+  // hay estado de "leído" — se refrescan solas cada minuto.
+  const { data: notifications } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: getNotifications,
+    refetchInterval: 60_000,
+  });
+
+  const pendingPayments = notifications?.payments.filter((p) => p.pending_confirmation) ?? [];
+  const confirmedPayments = notifications?.payments.filter((p) => !p.pending_confirmation) ?? [];
+  const urgentDebts = notifications?.debts.filter((d) => d.due_status === "overdue" || d.due_status === "due_soon") ?? [];
+  const badgeCount = pendingPayments.length + urgentDebts.length;
+
+  function openMenu() {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const left = Math.min(rect.left, window.innerWidth - MENU_WIDTH - 8);
+    if (variant.kind === "mobile") {
+      // El nav inferior está pegado al borde de la pantalla: el panel se abre
+      // hacia arriba (anclado por `bottom`), no hacia abajo.
+      setMenuPos({ bottom: window.innerHeight - rect.top + 8, left: Math.max(8, left) });
+    } else {
+      setMenuPos({ top: Math.min(rect.bottom + 8, window.innerHeight - 8), left: Math.max(8, left) });
+    }
+  }
+
+  const badge = badgeCount > 0 && (
+    <span className="absolute -top-1.5 -right-1.5 min-w-[1rem] h-4 px-1 rounded-full bg-[var(--danger)] text-white text-[10px] leading-4 text-center">
+      {badgeCount}
+    </span>
+  );
+
+  return (
+    <div>
+      {variant.kind === "mobile" ? (
+        <button
+          ref={buttonRef}
+          onClick={() => (menuPos ? setMenuPos(null) : openMenu())}
+          title="Notificaciones"
+          aria-label="Notificaciones"
+          className="flex flex-col items-center text-xs px-3 py-1.5 rounded-xl text-[var(--text-secondary)]"
+        >
+          <span className="relative">
+            <BellIcon className="w-5 h-5" />
+            {badge}
+          </span>
+          Avisos
+        </button>
+      ) : (
+        <button
+          ref={buttonRef}
+          onClick={() => (menuPos ? setMenuPos(null) : openMenu())}
+          title="Notificaciones"
+          aria-label="Notificaciones"
+          className={`neo-btn relative px-4 py-3 text-sm flex items-center gap-3 w-full ${
+            variant.collapsed ? "justify-center" : ""
+          }`}
+        >
+          <span className="relative shrink-0">
+            <BellIcon className="w-5 h-5" />
+            {badge}
+          </span>
+          {!variant.collapsed && "Notificaciones"}
+        </button>
+      )}
+
+      {menuPos && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setMenuPos(null)} />
+          <div
+            style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, width: MENU_WIDTH }}
+            className="fixed neo-raised p-3 z-50 flex flex-col gap-3 max-h-[70vh] overflow-y-auto"
+          >
+            <div>
+              <p className="text-xs font-semibold mb-2 px-1">Deudas pendientes</p>
+              {(notifications?.debts.length ?? 0) === 0 ? (
+                <p className="text-xs text-[var(--text-secondary)] px-1">No debes nada por ahora.</p>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {notifications?.debts.map((d) => (
+                    <Link
+                      key={`${d.account_id}-${d.currency}`}
+                      to="/payments"
+                      onClick={() => setMenuPos(null)}
+                      className="neo-flat px-3 py-2 text-xs text-left"
+                    >
+                      <p>
+                        Debes{" "}
+                        <span className="font-semibold text-[var(--danger)]">
+                          {d.amount} {d.currency}
+                        </span>{" "}
+                        · {d.account_name}
+                      </p>
+                      {d.due_status === "overdue" && (
+                        <p className="text-[var(--danger)] font-semibold mt-0.5">¡Fecha límite vencida!</p>
+                      )}
+                      {d.due_status === "due_soon" && (
+                        <p className="text-[var(--danger)] font-semibold mt-0.5">
+                          Vence pronto ({d.debt_due_date})
+                        </p>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold mb-2 px-1">Pagos recibidos</p>
+              {(notifications?.payments.length ?? 0) === 0 ? (
+                <p className="text-xs text-[var(--text-secondary)] px-1">Nadie te ha pagado todavía.</p>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {[...pendingPayments, ...confirmedPayments].map((p) => (
+                    <Link
+                      key={p.settlement_id}
+                      to={`/payments?tab=register&account=${p.account_id}`}
+                      onClick={() => setMenuPos(null)}
+                      className="neo-flat px-3 py-2 text-xs text-left"
+                    >
+                      <p>
+                        <span className="font-semibold">{p.from_user_name}</span> te pagó{" "}
+                        <span className="font-semibold text-[var(--success)]">
+                          {p.amount} {p.currency}
+                        </span>{" "}
+                        · {p.account_name}
+                      </p>
+                      {p.pending_confirmation && (
+                        <p className="text-[var(--accent)] font-semibold mt-0.5">Pendiente de confirmar</p>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Layout() {
   const { logout } = useAuth();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSE_KEY) === "1");
@@ -127,6 +288,7 @@ export default function Layout() {
           }`}
         >
           <ProfileMenu collapsed={collapsed} />
+          <NotificationsMenu variant={{ kind: "sidebar", collapsed }} />
 
           <nav className="flex flex-col gap-2">
             {NAV_ITEMS.map(({ to, label, Icon }) => (
@@ -192,6 +354,7 @@ export default function Layout() {
             {label}
           </NavLink>
         ))}
+        <NotificationsMenu variant={{ kind: "mobile" }} />
         <NavLink
           to="/settings"
           className={({ isActive }) =>
