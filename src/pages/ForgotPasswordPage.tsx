@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { forgotPassword, resetPassword } from "../api/endpoints";
 import { extractErrorMessage } from "../api/client";
-import { ErrorText, FieldLabel, NeoButton, NeoCard, NeoInput, PageHeader } from "../components/ui";
+import { ErrorText, FieldLabel, NeoButton, NeoCard, NeoInput, NeoPasswordInput, PageHeader } from "../components/ui";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -66,8 +66,7 @@ export default function ForgotPasswordPage() {
             </div>
             <div>
               <FieldLabel>Nueva contraseña</FieldLabel>
-              <NeoInput
-                type="password"
+              <NeoPasswordInput
                 required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}

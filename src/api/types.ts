@@ -2,21 +2,7 @@ export type AccountType = "personal" | "shared";
 export type AccountRole = "owner" | "member";
 export type Currency = "PEN" | "USD" | "CLP";
 export type WalletKind = "cash" | "bank";
-export type BankCode =
-  | "pe_interbank"
-  | "pe_bcp"
-  | "pe_bbva"
-  | "pe_scotiabank"
-  | "pe_santander"
-  | "pe_banco_nacion"
-  | "pe_falabella"
-  | "pe_ripley"
-  | "cl_banco_estado"
-  | "cl_banco_de_chile"
-  | "cl_santander"
-  | "cl_scotiabank"
-  | "cl_falabella"
-  | "other";
+export type BankCode = "pe" | "cl" | "global66" | "revolut" | "other_virtual";
 
 export type ExpenseCategory = "transporte" | "salud" | "comida" | "mercado" | "golosinas" | "servicios";
 
@@ -67,10 +53,17 @@ export interface Wallet {
   id: string;
   user_id: string;
   label: string;
+  description: string | null;
   currency: Currency;
   kind: WalletKind;
   bank_code: BankCode | null;
   balance: string;
+}
+
+export interface WalletUpdate {
+  label?: string;
+  description?: string | null;
+  bank_code?: BankCode | null;
 }
 
 export interface Subcategory {
@@ -146,7 +139,9 @@ export type WalletTransactionType =
   | "settlement_in"
   | "settlement_out"
   | "adjustment"
-  | "manual_expense";
+  | "manual_expense"
+  | "withdrawal_out"
+  | "withdrawal_in";
 
 export interface WalletTransaction {
   id: string;
@@ -174,4 +169,32 @@ export interface MyBalance {
   net_balance: string;
   debt_due_date: string | null;
   others: OtherMemberBalance[];
+}
+
+export interface PaymentNotification {
+  settlement_id: string;
+  account_id: string;
+  account_name: string;
+  from_user_id: string;
+  from_user_name: string;
+  amount: string;
+  currency: Currency;
+  settlement_date: string;
+  pending_confirmation: boolean;
+}
+
+export type DueStatus = "overdue" | "due_soon" | "ok" | null;
+
+export interface DebtNotification {
+  account_id: string;
+  account_name: string;
+  amount: string;
+  currency: Currency;
+  debt_due_date: string | null;
+  due_status: DueStatus;
+}
+
+export interface Notifications {
+  payments: PaymentNotification[];
+  debts: DebtNotification[];
 }

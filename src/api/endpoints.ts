@@ -7,6 +7,7 @@ import type {
   ExpenseCategory,
   Invitation,
   MyBalance,
+  Notifications,
   Settlement,
   Subcategory,
   User,
@@ -131,13 +132,34 @@ export async function createWallet(payload: {
   currency: string;
   kind: string;
   bank_code?: string | null;
+  initial_balance?: string;
 }): Promise<Wallet> {
   const { data } = await apiClient.post("/wallets", payload);
   return data;
 }
 
+export async function updateWallet(
+  walletId: string,
+  payload: { label?: string; description?: string | null; bank_code?: string | null },
+): Promise<Wallet> {
+  const { data } = await apiClient.patch(`/wallets/${walletId}`, payload);
+  return data;
+}
+
+export async function deleteWallet(walletId: string): Promise<void> {
+  await apiClient.delete(`/wallets/${walletId}`);
+}
+
 export async function topUpWallet(walletId: string, amount: string, note?: string) {
   const { data } = await apiClient.post(`/wallets/${walletId}/top-up`, { amount, note });
+  return data;
+}
+
+export async function withdrawFromWallet(
+  bankWalletId: string,
+  payload: { cash_wallet_id: string; amount_withdrawn: string; amount_received: string; note?: string },
+): Promise<Wallet> {
+  const { data } = await apiClient.post(`/wallets/${bankWalletId}/withdraw`, payload);
   return data;
 }
 
@@ -151,6 +173,18 @@ export async function listWalletTransactions(walletId?: string): Promise<WalletT
     params: walletId ? { wallet_id: walletId } : {},
   });
   return data;
+}
+
+export async function updateWalletTransaction(
+  transactionId: string,
+  payload: { amount?: string; note?: string | null },
+): Promise<WalletTransaction> {
+  const { data } = await apiClient.patch(`/wallets/transactions/${transactionId}`, payload);
+  return data;
+}
+
+export async function deleteWalletTransaction(transactionId: string): Promise<void> {
+  await apiClient.delete(`/wallets/transactions/${transactionId}`);
 }
 
 // --- Expenses ---
@@ -252,6 +286,11 @@ export async function confirmSettlement(settlementId: string, toWalletId?: strin
 
 export async function listMyBalances(): Promise<MyBalance[]> {
   const { data } = await apiClient.get("/settlements/my-balances");
+  return data;
+}
+
+export async function getNotifications(): Promise<Notifications> {
+  const { data } = await apiClient.get("/settlements/notifications");
   return data;
 }
 

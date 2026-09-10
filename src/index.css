@@ -105,6 +105,17 @@ body {
     transform 0.12s ease;
 }
 
+/* Efecto sutil y consistente para TODO elemento clickeable de la app (nav,
+   botones, iconos de acción, etc.): un levantamiento leve al pasar el
+   cursor. Va antes de :active para que el estado "presionado" siga
+   ganando durante el click. */
+.neo-btn:hover {
+  box-shadow:
+    6px 6px 13px var(--shadow-dark),
+    -6px -6px 13px var(--shadow-light);
+  transform: translateY(-1px);
+}
+
 .neo-btn:active {
   box-shadow:
     inset 3px 3px 6px var(--shadow-dark),
