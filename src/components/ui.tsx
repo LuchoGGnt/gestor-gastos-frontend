@@ -1,7 +1,21 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import type {
+  ButtonHTMLAttributes,
+  HTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+} from "react";
 
-export function NeoCard({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`neo-raised p-5 sm:p-6 ${className}`}>{children}</div>;
+export function NeoCard({
+  children,
+  className = "",
+  ...props
+}: { children: ReactNode; className?: string } & HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={`neo-raised p-5 sm:p-6 ${className}`} {...props}>
+      {children}
+    </div>
+  );
 }
 
 export function NeoButton({
