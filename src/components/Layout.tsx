@@ -40,8 +40,11 @@ function ProfileMenu({ collapsed }: { collapsed: boolean }) {
       <button
         ref={buttonRef}
         onClick={() => (menuPos ? setMenuPos(null) : openMenu())}
-        className={`neo-raised p-4 w-full flex items-center gap-3 hover:opacity-90 ${
-          collapsed ? "justify-center" : ""
+        className={`neo-raised w-full flex items-center gap-3 hover:opacity-90 ${
+          // Padding más chico cuando está colapsado: con el padding normal
+          // (p-4) el sidebar angosto (w-20) no alcanza a darle espacio a la
+          // foto de perfil (40px) sin recortarla — se veía "distorsionada".
+          collapsed ? "p-2 justify-center" : "p-4"
         }`}
       >
         <AuthImage
@@ -117,8 +120,8 @@ export default function Layout() {
           junto con el sidebar en vez de desplazarse con el scroll de <main>. */}
       <div className="hidden sm:block relative shrink-0 sticky top-0 h-screen">
         <aside
-          className={`flex flex-col p-5 gap-4 h-full overflow-y-auto overflow-x-hidden border-r border-[var(--shadow-dark)] transition-[width] duration-150 ${
-            collapsed ? "w-20" : "w-56"
+          className={`flex flex-col gap-4 h-full overflow-y-auto overflow-x-hidden border-r border-[var(--shadow-dark)] transition-[width] duration-150 ${
+            collapsed ? "w-20 px-2 py-5" : "w-56 p-5"
           }`}
         >
           <ProfileMenu collapsed={collapsed} />
