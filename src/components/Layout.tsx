@@ -114,7 +114,9 @@ export default function Layout() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col sm:flex-row">
+    // pt-[env(safe-area-inset-top)] evita que el contenido quede debajo de la
+    // barra de notificaciones/hora en celulares con notch o pantalla curva.
+    <div className="min-h-screen flex flex-col sm:flex-row pt-[env(safe-area-inset-top)]">
       {/* El wrapper (no el <aside>) es lo que debe ser sticky: así el botón de
           colapso, posicionado absolute respecto a este wrapper, se queda fijo
           junto con el sidebar en vez de desplazarse con el scroll de <main>. */}
@@ -166,13 +168,16 @@ export default function Layout() {
         </button>
       </div>
 
-      <main className="flex-1 p-4 sm:p-8 pb-20 sm:pb-8 max-w-5xl w-full mx-auto">
+      {/* pb-[calc(5rem_+_env(safe-area-inset-bottom))]: dejar espacio para el
+          nav inferior fijo MÁS la barra de gestos del sistema (celulares sin
+          botón físico de inicio), no solo para el nav. */}
+      <main className="flex-1 p-4 sm:p-8 pb-[calc(5rem_+_env(safe-area-inset-bottom))] sm:pb-8 max-w-5xl w-full mx-auto">
         <ErrorBoundary key={typeof window !== "undefined" ? window.location.pathname : undefined}>
           <Outlet />
         </ErrorBoundary>
       </main>
 
-      <nav className="sm:hidden fixed inset-x-0 bottom-0 z-50 neo-raised rounded-none border-t border-[var(--shadow-dark)] flex justify-around py-2 px-2">
+      <nav className="sm:hidden fixed inset-x-0 bottom-0 z-50 neo-raised rounded-none border-t border-[var(--shadow-dark)] flex justify-around pt-2 pb-[calc(0.5rem_+_env(safe-area-inset-bottom))] px-2">
         {NAV_ITEMS.map(({ to, label, Icon }) => (
           <NavLink
             key={to}
