@@ -1,22 +1,22 @@
-import type {
-  ButtonHTMLAttributes,
-  HTMLAttributes,
-  InputHTMLAttributes,
-  ReactNode,
-  SelectHTMLAttributes,
+import {
+  forwardRef,
+  type ButtonHTMLAttributes,
+  type HTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
 } from "react";
 
-export function NeoCard({
-  children,
-  className = "",
-  ...props
-}: { children: ReactNode; className?: string } & HTMLAttributes<HTMLDivElement>) {
+export const NeoCard = forwardRef<
+  HTMLDivElement,
+  { children: ReactNode; className?: string } & HTMLAttributes<HTMLDivElement>
+>(function NeoCard({ children, className = "", ...props }, ref) {
   return (
-    <div className={`neo-raised p-5 sm:p-6 ${className}`} {...props}>
+    <div ref={ref} className={`neo-raised p-5 sm:p-6 ${className}`} {...props}>
       {children}
     </div>
   );
-}
+});
 
 export function NeoButton({
   children,
@@ -74,6 +74,21 @@ export function FieldLabel({ children }: { children: ReactNode }) {
 export function ErrorText({ message }: { message?: string | null }) {
   if (!message) return null;
   return <p className="text-[var(--danger)] text-sm mt-2">{message}</p>;
+}
+
+export function Modal({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  return (
+    <>
+      {/* Fondo borroso: concentra toda la atención en la alerta, típico para
+          acciones destructivas (borrar). Clic afuera también cierra. */}
+      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+        <div className="pointer-events-auto w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+          {children}
+        </div>
+      </div>
+    </>
+  );
 }
 
 export function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
