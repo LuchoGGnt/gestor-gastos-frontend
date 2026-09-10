@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createWallet,
@@ -14,7 +14,7 @@ import {
 } from "../api/endpoints";
 import type { BankCode, Currency, Wallet, WalletTransaction, WalletKind, WalletTransactionType } from "../api/types";
 import { extractErrorMessage } from "../api/client";
-import { ErrorText, FieldLabel, NeoButton, NeoCard, NeoInput, NeoSelect, PageHeader } from "../components/ui";
+import { ErrorText, FieldLabel, Modal, NeoButton, NeoCard, NeoInput, NeoSelect, PageHeader } from "../components/ui";
 import { PencilIcon, TrashIcon } from "../components/icons";
 
 // Ya no se listan bancos individuales de Perú/Chile: el banco concreto
@@ -189,6 +189,11 @@ export default function WalletsPage() {
               selectedWalletId === w.id ? "outline outline-2 outline-[var(--accent)]" : ""
             }`}
           >
+            {managing?.mode === "edit" && managing.id === w.id && (
+              <span className="absolute -top-2 -left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--accent)] text-white">
+                Editando
+              </span>
+            )}
             <p className="text-xs text-[var(--text-secondary)]">
               {w.kind === "cash" ? "Efectivo" : BANKS.find((b) => b.value === w.bank_code)?.label ?? "Banco"}
             </p>
@@ -586,6 +591,15 @@ export default function WalletsPage() {
 
 function WalletEditForm({ wallet, onClose }: { wallet: Wallet; onClose: () => void }) {
   const queryClient = useQueryClient();
+  const formRef = useRef<HTMLDivElement>(null);
+
+  // El formulario aparece más abajo en la página, lejos de la card en la que
+  // se hizo click: se desplaza la vista hasta él para que quede claro dónde
+  // continuar (además del borde de color y el badge "Editando" en la card).
+  useEffect(() => {
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, []);
+
   const [label, setLabel] = useState(wallet.label);
   const [description, setDescription] = useState(wallet.description ?? "");
   const [bankCode, setBankCode] = useState<BankCode | "">(wallet.bank_code ?? "");
@@ -616,8 +630,10 @@ function WalletEditForm({ wallet, onClose }: { wallet: Wallet; onClose: () => vo
     (wallet.kind === "bank" && bankCode !== (wallet.bank_code ?? ""));
 
   return (
-    <NeoCard>
-      <p className="text-sm font-semibold mb-3">Editar cartera</p>
+    <NeoCard ref={formRef} className="border-l-4 border-[var(--accent)] scroll-mt-4">
+      <p className="text-sm font-semibold mb-3">
+        Editando <span className="text-[var(--accent)]">"{wallet.label}"</span>
+      </p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -677,7 +693,6 @@ function WalletDangerZone({
   onDeleted: () => void;
   onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [confirmLabel, setConfirmLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -704,59 +719,53 @@ function WalletDangerZone({
   }
 
   return (
-    <NeoCard className="border-l-4 border-[var(--danger)]">
-      <p className="text-sm font-semibold mb-1">Eliminar cartera "{wallet.label}"</p>
-      <p className="text-[11px] text-[var(--text-secondary)] mb-3">
-        Solo es posible si la cartera no tiene saldo (0 {wallet.currency}). La eliminación es permanente.
-      </p>
+    <Modal onClose={onClose}>
+      <NeoCard className="border-l-4 border-[var(--danger)]">
+        <p className="text-sm font-semibold mb-1">Eliminar cartera "{wallet.label}"</p>
+        <p className="text-[11px] text-[var(--text-secondary)] mb-3">
+          Solo es posible si la cartera no tiene saldo (0 {wallet.currency}). La eliminación es permanente.
+        </p>
 
-      {hasBalance ? (
-        <div className="flex flex-col gap-3">
-          <p className="text-xs text-[var(--danger)]">
-            Esta cartera tiene saldo ({wallet.balance} {wallet.currency}). Retira o transfiere el dinero
-            antes de poder eliminarla.
-          </p>
-          <NeoButton type="button" onClick={onClose} className="self-start">
-            Cerrar
-          </NeoButton>
-        </div>
-      ) : !open ? (
-        <div className="flex gap-3">
-          <NeoButton variant="danger" onClick={() => setOpen(true)}>
-            Eliminar cartera
-          </NeoButton>
-          <NeoButton type="button" onClick={onClose}>
-            Cerrar
-          </NeoButton>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          <div>
-            <FieldLabel>
-              Escribe el nombre de la cartera (<strong>{wallet.label}</strong>) para confirmar
-            </FieldLabel>
-            <NeoInput
-              value={confirmLabel}
-              onChange={(e) => setConfirmLabel(e.target.value)}
-              placeholder={wallet.label}
-            />
-          </div>
-          <div className="flex gap-3">
-            <NeoButton
-              variant="danger"
-              disabled={!labelMatches || deleteMutation.isPending}
-              onClick={handleDelete}
-            >
-              Confirmar eliminación
-            </NeoButton>
-            <NeoButton type="button" onClick={onClose}>
-              Cancelar
+        {hasBalance ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-[var(--danger)]">
+              Esta cartera tiene saldo ({wallet.balance} {wallet.currency}). Retira o transfiere el dinero
+              antes de poder eliminarla.
+            </p>
+            <NeoButton type="button" onClick={onClose} className="self-start">
+              Cerrar
             </NeoButton>
           </div>
-          <ErrorText message={error} />
-        </div>
-      )}
-    </NeoCard>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div>
+              <FieldLabel>
+                Escribe el nombre de la cartera (<strong>{wallet.label}</strong>) para confirmar
+              </FieldLabel>
+              <NeoInput
+                autoFocus
+                value={confirmLabel}
+                onChange={(e) => setConfirmLabel(e.target.value)}
+                placeholder={wallet.label}
+              />
+            </div>
+            <div className="flex gap-3">
+              <NeoButton
+                variant="danger"
+                disabled={!labelMatches || deleteMutation.isPending}
+                onClick={handleDelete}
+              >
+                Confirmar eliminación
+              </NeoButton>
+              <NeoButton type="button" onClick={onClose}>
+                Cancelar
+              </NeoButton>
+            </div>
+            <ErrorText message={error} />
+          </div>
+        )}
+      </NeoCard>
+    </Modal>
   );
 }
 
