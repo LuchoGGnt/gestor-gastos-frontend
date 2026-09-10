@@ -136,6 +136,14 @@ export async function createWallet(payload: {
   return data;
 }
 
+export async function updateWallet(
+  walletId: string,
+  payload: { label?: string; description?: string | null; bank_code?: string | null },
+): Promise<Wallet> {
+  const { data } = await apiClient.patch(`/wallets/${walletId}`, payload);
+  return data;
+}
+
 export async function deleteWallet(walletId: string): Promise<void> {
   await apiClient.delete(`/wallets/${walletId}`);
 }

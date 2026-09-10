@@ -7,6 +7,7 @@ import {
   listWallets,
   registerManualExpense,
   topUpWallet,
+  updateWallet,
 } from "../api/endpoints";
 import type { BankCode, Currency, Wallet, WalletKind, WalletTransactionType } from "../api/types";
 import { extractErrorMessage } from "../api/client";
@@ -27,6 +28,14 @@ const BANKS: { value: BankCode; label: string; group: "Perú" | "Chile" }[] = [
   { value: "cl_scotiabank", label: "Scotiabank", group: "Chile" },
   { value: "cl_falabella", label: "Falabella", group: "Chile" },
 ];
+
+// Agrupa un banco por país (o "virtual" para los multi-moneda) para restringir
+// a qué bancos se puede cambiar al editar una cartera: no tiene sentido dejar
+// que una cartera de un país "pase" a otro con solo cambiar el banco.
+function bankGroup(code: BankCode): string {
+  const prefix = code.split("_")[0];
+  return prefix === "pe" || prefix === "cl" ? prefix : "virtual";
+}
 
 const TRANSACTION_LABELS: Record<WalletTransactionType, string> = {
   topup: "Ingreso",
@@ -164,13 +173,16 @@ export default function WalletsPage() {
       </div>
 
       {selectedWallet && (
-        <WalletDangerZone
-          wallet={selectedWallet}
-          onDeleted={() => {
-            setSelectedWalletId("");
-            queryClient.invalidateQueries({ queryKey: ["wallets"] });
-          }}
-        />
+        <>
+          <WalletEditForm wallet={selectedWallet} />
+          <WalletDangerZone
+            wallet={selectedWallet}
+            onDeleted={() => {
+              setSelectedWalletId("");
+              queryClient.invalidateQueries({ queryKey: ["wallets"] });
+            }}
+          />
+        </>
       )}
 
       {activeForm === "create" && (
@@ -407,6 +419,87 @@ export default function WalletsPage() {
         </div>
       </NeoCard>
     </div>
+  );
+}
+
+function WalletEditForm({ wallet }: { wallet: Wallet }) {
+  const queryClient = useQueryClient();
+  const [label, setLabel] = useState(wallet.label);
+  const [description, setDescription] = useState(wallet.description ?? "");
+  const [bankCode, setBankCode] = useState<BankCode | "">(wallet.bank_code ?? "");
+  const [error, setError] = useState<string | null>(null);
+
+  const sameGroupBanks =
+    wallet.kind === "bank" && wallet.bank_code
+      ? BANKS.filter((b) => bankGroup(b.value) === bankGroup(wallet.bank_code as BankCode))
+      : [];
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      updateWallet(wallet.id, {
+        label: label.trim(),
+        description: description.trim() || null,
+        ...(wallet.kind === "bank" ? { bank_code: bankCode || null } : {}),
+      }),
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: ["wallets"] });
+    },
+    onError: (err) => setError(extractErrorMessage(err)),
+  });
+
+  const dirty =
+    label.trim() !== wallet.label ||
+    (description.trim() || null) !== (wallet.description ?? null) ||
+    (wallet.kind === "bank" && bankCode !== (wallet.bank_code ?? ""));
+
+  return (
+    <NeoCard>
+      <p className="text-sm font-semibold mb-3">Editar cartera</p>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setError(null);
+          saveMutation.mutate();
+        }}
+        className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end"
+      >
+        <div>
+          <FieldLabel>Nombre</FieldLabel>
+          <NeoInput required maxLength={100} value={label} onChange={(e) => setLabel(e.target.value)} />
+        </div>
+        <div className="lg:col-span-2">
+          <FieldLabel>Descripción (opcional)</FieldLabel>
+          <NeoInput
+            maxLength={255}
+            placeholder="De dónde viene este dinero, notas, etc."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+        {wallet.kind === "bank" && (
+          <div>
+            <FieldLabel>Banco</FieldLabel>
+            <NeoSelect value={bankCode} onChange={(e) => setBankCode(e.target.value as BankCode)}>
+              {sameGroupBanks.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
+            </NeoSelect>
+            <p className="text-[11px] text-[var(--text-secondary)] mt-1">
+              Solo se puede cambiar a un banco del mismo país.
+            </p>
+          </div>
+        )}
+        <div>
+          <NeoButton type="submit" variant="accent" disabled={!dirty || saveMutation.isPending}>
+            Guardar cambios
+          </NeoButton>
+        </div>
+      </form>
+      <ErrorText message={error} />
+    </NeoCard>
   );
 }
 

@@ -67,10 +67,17 @@ export interface Wallet {
   id: string;
   user_id: string;
   label: string;
+  description: string | null;
   currency: Currency;
   kind: WalletKind;
   bank_code: BankCode | null;
   balance: string;
+}
+
+export interface WalletUpdate {
+  label?: string;
+  description?: string | null;
+  bank_code?: BankCode | null;
 }
 
 export interface Subcategory {
