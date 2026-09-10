@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { getAccount, listAccounts, listMyBalances, setDebtDueDate } from "../api/endpoints";
 import type { Account, MyBalance } from "../api/types";
 import { useAuth } from "../context/AuthContext";
@@ -117,9 +118,16 @@ function BalanceTile({ balance, isOwner }: { balance: MyBalance; isOwner: boolea
 }
 
 export default function PaymentsPage() {
-  const [subTab, setSubTab] = useState<SubTab>("balances");
+  // Las notificaciones de pagos enlazan acá con ?tab=register&account=<id>
+  // para llevar directo a la cuenta donde hay que confirmar la recepción,
+  // en vez de dejar al usuario en "Saldos" sin cuenta elegida.
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") === "register" ? "register" : "balances";
+  const initialAccountId = searchParams.get("account") ?? "";
+
+  const [subTab, setSubTab] = useState<SubTab>(initialTab);
   const [balancesFilterId, setBalancesFilterId] = useState(""); // "" = todas
-  const [registerAccountId, setRegisterAccountId] = useState("");
+  const [registerAccountId, setRegisterAccountId] = useState(initialAccountId);
   const { user } = useAuth();
 
   const { data: accounts } = useQuery({ queryKey: ["accounts"], queryFn: listAccounts });

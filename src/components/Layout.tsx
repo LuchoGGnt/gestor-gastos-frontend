@@ -233,7 +233,7 @@ function NotificationsMenu({
                   {[...pendingPayments, ...confirmedPayments].map((p) => (
                     <Link
                       key={p.settlement_id}
-                      to="/payments"
+                      to={`/payments?tab=register&account=${p.account_id}`}
                       onClick={() => setMenuPos(null)}
                       className="neo-flat px-3 py-2 text-xs text-left"
                     >
