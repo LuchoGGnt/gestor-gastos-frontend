@@ -154,6 +154,14 @@ export async function topUpWallet(walletId: string, amount: string, note?: strin
   return data;
 }
 
+export async function withdrawFromWallet(
+  bankWalletId: string,
+  payload: { cash_wallet_id: string; amount_withdrawn: string; amount_received: string; note?: string },
+): Promise<Wallet> {
+  const { data } = await apiClient.post(`/wallets/${bankWalletId}/withdraw`, payload);
+  return data;
+}
+
 export async function registerManualExpense(walletId: string, amount: string, note?: string) {
   const { data } = await apiClient.post(`/wallets/${walletId}/manual-expense`, { amount, note });
   return data;

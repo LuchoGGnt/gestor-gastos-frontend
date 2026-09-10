@@ -139,7 +139,9 @@ export type WalletTransactionType =
   | "settlement_in"
   | "settlement_out"
   | "adjustment"
-  | "manual_expense";
+  | "manual_expense"
+  | "withdrawal_out"
+  | "withdrawal_in";
 
 export interface WalletTransaction {
   id: string;

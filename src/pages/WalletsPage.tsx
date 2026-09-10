@@ -8,6 +8,7 @@ import {
   registerManualExpense,
   topUpWallet,
   updateWallet,
+  withdrawFromWallet,
 } from "../api/endpoints";
 import type { BankCode, Currency, Wallet, WalletKind, WalletTransactionType } from "../api/types";
 import { extractErrorMessage } from "../api/client";
@@ -44,14 +45,17 @@ const TRANSACTION_LABELS: Record<WalletTransactionType, string> = {
   settlement_out: "Pago enviado",
   adjustment: "Ajuste",
   manual_expense: "Gasto manual",
+  withdrawal_out: "Retiro (banco)",
+  withdrawal_in: "Retiro (efectivo)",
 };
 
-const INCOME_TYPES = new Set<WalletTransactionType>(["topup", "settlement_in", "conversion_in"]);
+const INCOME_TYPES = new Set<WalletTransactionType>(["topup", "settlement_in", "conversion_in", "withdrawal_in"]);
 const EXPENSE_TYPES = new Set<WalletTransactionType>([
   "expense_payment",
   "settlement_out",
   "conversion_out",
   "manual_expense",
+  "withdrawal_out",
 ]);
 
 function isIncome(type: WalletTransactionType): boolean {
@@ -73,7 +77,7 @@ export default function WalletsPage() {
 
   // Un solo formulario abierto a la vez: no tiene sentido crear una cartera y
   // registrar un ingreso/gasto al mismo tiempo.
-  const [activeForm, setActiveForm] = useState<"create" | "topup" | "expense" | null>(null);
+  const [activeForm, setActiveForm] = useState<"create" | "topup" | "expense" | "withdraw" | null>(null);
 
   const [label, setLabel] = useState("");
   const [currency, setCurrency] = useState<Currency>("PEN");
@@ -130,6 +134,35 @@ export default function WalletsPage() {
     },
     onError: (err) => setExpenseError(extractErrorMessage(err)),
   });
+
+  const [withdrawBankTarget, setWithdrawBankTarget] = useState("");
+  const [withdrawCashTarget, setWithdrawCashTarget] = useState("");
+  const [withdrawAmountOut, setWithdrawAmountOut] = useState("");
+  const [withdrawAmountIn, setWithdrawAmountIn] = useState("");
+  const [withdrawNote, setWithdrawNote] = useState("");
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const withdrawMutation = useMutation({
+    mutationFn: () =>
+      withdrawFromWallet(withdrawBankTarget, {
+        cash_wallet_id: withdrawCashTarget,
+        amount_withdrawn: withdrawAmountOut,
+        amount_received: withdrawAmountIn,
+        note: withdrawNote || undefined,
+      }),
+    onSuccess: () => {
+      setWithdrawAmountOut("");
+      setWithdrawAmountIn("");
+      setWithdrawNote("");
+      setActiveForm(null);
+      queryClient.invalidateQueries({ queryKey: ["wallets"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+    },
+    onError: (err) => setWithdrawError(extractErrorMessage(err)),
+  });
+  const withdrawFee =
+    Number(withdrawAmountOut || 0) > 0 && Number(withdrawAmountIn || 0) > 0
+      ? Number(withdrawAmountOut) - Number(withdrawAmountIn)
+      : null;
 
   // La selección (para filtrar el historial) es independiente de "gestionar"
   // una cartera (editar/eliminar): un click en la card ya no abre esos
@@ -207,6 +240,12 @@ export default function WalletsPage() {
           variant={activeForm === "expense" ? "accent" : "default"}
         >
           + Registrar gasto
+        </NeoButton>
+        <NeoButton
+          onClick={() => setActiveForm((v) => (v === "withdraw" ? null : "withdraw"))}
+          variant={activeForm === "withdraw" ? "accent" : "default"}
+        >
+          + Registrar retiro
         </NeoButton>
       </div>
 
@@ -407,6 +446,103 @@ export default function WalletsPage() {
             </div>
             <div className="sm:col-span-2 lg:col-span-4">
               <ErrorText message={expenseError} />
+            </div>
+          </form>
+        </NeoCard>
+      )}
+
+      {activeForm === "withdraw" && (
+        <NeoCard>
+          <p className="text-sm font-semibold mb-1">Registrar retiro</p>
+          <p className="text-xs text-[var(--text-secondary)] mb-3">
+            Retira dinero de una cuenta bancaria hacia una cartera de efectivo. Si el monto retirado y el
+            monto recibido en efectivo no coinciden, la diferencia se registra como cargo por retiro.
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setWithdrawError(null);
+              withdrawMutation.mutate();
+            }}
+            className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end"
+          >
+            <div>
+              <FieldLabel>Cuenta bancaria (origen)</FieldLabel>
+              <NeoSelect
+                value={withdrawBankTarget}
+                onChange={(e) => setWithdrawBankTarget(e.target.value)}
+                required
+              >
+                <option value="">Selecciona...</option>
+                {wallets
+                  ?.filter((w) => w.kind === "bank")
+                  .map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.label} ({w.currency} {w.balance})
+                    </option>
+                  ))}
+              </NeoSelect>
+            </div>
+            <div>
+              <FieldLabel>Cartera de efectivo (destino)</FieldLabel>
+              <NeoSelect
+                value={withdrawCashTarget}
+                onChange={(e) => setWithdrawCashTarget(e.target.value)}
+                required
+              >
+                <option value="">Selecciona...</option>
+                {wallets
+                  ?.filter((w) => w.kind === "cash")
+                  .map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.label} ({w.currency})
+                    </option>
+                  ))}
+              </NeoSelect>
+            </div>
+            <div>
+              <FieldLabel>Monto retirado del banco</FieldLabel>
+              <NeoInput
+                type="number"
+                step="0.01"
+                required
+                value={withdrawAmountOut}
+                onChange={(e) => setWithdrawAmountOut(e.target.value)}
+              />
+            </div>
+            <div>
+              <FieldLabel>Monto recibido en efectivo</FieldLabel>
+              <NeoInput
+                type="number"
+                step="0.01"
+                required
+                value={withdrawAmountIn}
+                onChange={(e) => setWithdrawAmountIn(e.target.value)}
+              />
+            </div>
+            <div>
+              <FieldLabel>Nota (opcional)</FieldLabel>
+              <NeoInput value={withdrawNote} onChange={(e) => setWithdrawNote(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <NeoButton type="submit" variant="accent" disabled={withdrawMutation.isPending}>
+                Registrar
+              </NeoButton>
+              <NeoButton type="button" onClick={() => setActiveForm(null)}>
+                Cancelar
+              </NeoButton>
+            </div>
+            <div className="sm:col-span-2 lg:col-span-4 flex flex-col gap-1">
+              {withdrawFee !== null && (
+                <p className="text-xs text-[var(--text-secondary)]">
+                  {withdrawFee > 0
+                    ? `Cargo por retiro calculado: ${withdrawFee.toFixed(2)}`
+                    : withdrawFee < 0
+                      ? "El monto recibido no puede ser mayor al retirado."
+                      : "Sin cargo por retiro."}
+                </p>
+              )}
+              <ErrorText message={withdrawError} />
             </div>
           </form>
         </NeoCard>
