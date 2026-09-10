@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../api/endpoints";
 import { useAuth } from "../context/AuthContext";
 import { extractErrorMessage } from "../api/client";
-import { ErrorText, FieldLabel, NeoButton, NeoCard, NeoInput, PageHeader } from "../components/ui";
+import { ErrorText, FieldLabel, NeoButton, NeoCard, NeoInput, NeoPasswordInput, PageHeader } from "../components/ui";
 
 export default function RegisterPage() {
   const { login } = useAuth();
@@ -58,8 +58,7 @@ export default function RegisterPage() {
           </div>
           <div>
             <FieldLabel>Contraseña</FieldLabel>
-            <NeoInput
-              type="password"
+            <NeoPasswordInput
               required
               value={form.password}
               onChange={(e) => update("password", e.target.value)}

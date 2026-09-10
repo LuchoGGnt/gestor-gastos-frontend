@@ -9,7 +9,7 @@ import { extractErrorMessage } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import AuthImage from "../components/AuthImage";
-import { ErrorText, FieldLabel, NeoButton, NeoInput, PageHeader } from "../components/ui";
+import { ErrorText, FieldLabel, NeoButton, NeoInput, NeoPasswordInput, PageHeader } from "../components/ui";
 
 const THEME_OPTIONS: { value: "light" | "dark" | "system"; label: string }[] = [
   { value: "light", label: "Claro" },
@@ -199,8 +199,7 @@ export default function SettingsPage() {
           <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-4 max-w-sm">
             <div>
               <FieldLabel>Contraseña actual</FieldLabel>
-              <NeoInput
-                type="password"
+              <NeoPasswordInput
                 required
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -208,8 +207,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <FieldLabel>Contraseña nueva</FieldLabel>
-              <NeoInput
-                type="password"
+              <NeoPasswordInput
                 required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
