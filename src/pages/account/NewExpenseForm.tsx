@@ -274,6 +274,14 @@ export default function NewExpenseForm({
     );
   }
 
+  /** Un solo miembro asume el producto completo (una o más unidades): le
+   * asigna el total y limpia lo que hubiera puesto para los demás. */
+  function assignAllToMember(clientId: string, userId: string, total: number) {
+    setProducts((prev) =>
+      prev.map((p) => (p.clientId !== clientId ? p : { ...p, customAmounts: { [userId]: round2(total) } })),
+    );
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over) return;
@@ -597,18 +605,36 @@ export default function NewExpenseForm({
                         {p.product_name} — total {round2(total)}
                       </p>
                       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                        {account.members.map((m) => (
-                          <div key={m.user_id} className="flex items-center gap-2">
-                            <span className="text-xs w-20 truncate">{memberLabel(m.user_id)}</span>
-                            <NeoInput
-                              type="number"
-                              step="0.01"
-                              placeholder="0"
-                              value={p.customAmounts[m.user_id] ?? ""}
-                              onChange={(e) => updateCustomAmount(p.clientId, m.user_id, e.target.value)}
-                            />
-                          </div>
-                        ))}
+                        {account.members.map((m) => {
+                          const assumesAll =
+                            Object.keys(p.customAmounts).length === 1 &&
+                            p.customAmounts[m.user_id] !== undefined &&
+                            Math.abs((parseFloat(p.customAmounts[m.user_id]) || 0) - total) <= 0.02;
+                          return (
+                            <div key={m.user_id} className="flex items-center gap-2">
+                              <span className="text-xs w-20 truncate">{memberLabel(m.user_id)}</span>
+                              <div className="flex-1 min-w-0">
+                                <NeoInput
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0"
+                                  value={p.customAmounts[m.user_id] ?? ""}
+                                  onChange={(e) => updateCustomAmount(p.clientId, m.user_id, e.target.value)}
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => assignAllToMember(p.clientId, m.user_id, total)}
+                                title={`Que ${memberLabel(m.user_id)} asuma el producto completo`}
+                                className={`text-[10px] whitespace-nowrap px-2 py-1 rounded-full neo-btn cursor-pointer ${
+                                  assumesAll ? "text-[var(--accent)] font-semibold" : "text-[var(--text-secondary)]"
+                                }`}
+                              >
+                                Todo
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
                       <p
                         className={`text-[11px] mt-2 ${
