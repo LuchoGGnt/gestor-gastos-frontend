@@ -771,6 +771,9 @@ function TransactionRow({ tx }: { tx: WalletTransaction }) {
   // pago entre miembros) se pueden corregir directamente: esos otros se
   // editan desde su propio flujo (gasto/settlement).
   const correctable = !tx.related_account_name && !tx.related_description;
+  // Un retiro son dos filas enlazadas (banco + efectivo, con el cargo como
+  // diferencia); el backend no permite corregir el monto de un solo lado.
+  const isWithdrawal = tx.transaction_type === "withdrawal_out" || tx.transaction_type === "withdrawal_in";
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["wallets"] });
@@ -778,7 +781,11 @@ function TransactionRow({ tx }: { tx: WalletTransaction }) {
   };
 
   const saveMutation = useMutation({
-    mutationFn: () => updateWalletTransaction(tx.id, { amount, note: note.trim() || null }),
+    mutationFn: () =>
+      updateWalletTransaction(tx.id, {
+        note: note.trim() || null,
+        ...(isWithdrawal ? {} : { amount }),
+      }),
     onSuccess: () => {
       setEditing(false);
       invalidate();
@@ -793,7 +800,10 @@ function TransactionRow({ tx }: { tx: WalletTransaction }) {
   });
 
   function handleDelete() {
-    if (window.confirm("¿Borrar este movimiento? Se revertirá su efecto en el saldo de la cartera.")) {
+    const message = isWithdrawal
+      ? "¿Borrar este retiro? Se revertirá el monto retirado del banco y el recibido en efectivo (cargo incluido)."
+      : "¿Borrar este movimiento? Se revertirá su efecto en el saldo de la cartera.";
+    if (window.confirm(message)) {
       deleteMutation.mutate();
     }
   }
@@ -814,10 +824,16 @@ function TransactionRow({ tx }: { tx: WalletTransaction }) {
           {TRANSACTION_LABELS[tx.transaction_type]} · {tx.wallet_label}
         </p>
         <div className="grid sm:grid-cols-3 gap-2 items-end">
-          <div>
-            <FieldLabel>Monto</FieldLabel>
-            <NeoInput type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          </div>
+          {isWithdrawal ? (
+            <p className="text-xs text-[var(--text-secondary)] sm:col-span-1">
+              El monto de un retiro no se puede editar: bórralo y regístralo de nuevo si está mal.
+            </p>
+          ) : (
+            <div>
+              <FieldLabel>Monto</FieldLabel>
+              <NeoInput type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </div>
+          )}
           <div>
             <FieldLabel>Nota</FieldLabel>
             <NeoInput value={note} onChange={(e) => setNote(e.target.value)} />
@@ -866,12 +882,12 @@ function TransactionRow({ tx }: { tx: WalletTransaction }) {
           {tx.amount} {tx.currency}
         </p>
         {correctable && (
-          <>
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => setEditing(true)}
               title="Corregir movimiento"
               aria-label="Corregir movimiento"
-              className="neo-btn w-7 h-7 rounded-full flex items-center justify-center cursor-pointer"
+              className="neo-btn w-7 h-7 rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-110 hover:text-[var(--accent)]"
             >
               <PencilIcon className="w-3.5 h-3.5" />
             </button>
@@ -879,11 +895,11 @@ function TransactionRow({ tx }: { tx: WalletTransaction }) {
               onClick={handleDelete}
               title="Borrar movimiento"
               aria-label="Borrar movimiento"
-              className="neo-btn w-7 h-7 rounded-full flex items-center justify-center text-[var(--danger)] cursor-pointer"
+              className="neo-btn w-7 h-7 rounded-full flex items-center justify-center text-[var(--danger)] cursor-pointer transition-transform hover:scale-110"
             >
               <TrashIcon className="w-3.5 h-3.5" />
             </button>
-          </>
+          </div>
         )}
       </div>
     </div>
