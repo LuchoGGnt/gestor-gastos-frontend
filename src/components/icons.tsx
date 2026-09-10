@@ -29,6 +29,26 @@ export function WalletIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function PencilIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M16.5 4.5 19.5 7.5 8 19H5v-3z" />
+      <path d="M14.5 6.5 17.5 9.5" />
+    </svg>
+  );
+}
+
+export function TrashIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5 7h14" />
+      <path d="M9.5 7V5.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V7" />
+      <path d="M6.5 7 7.3 19a1 1 0 0 0 1 .9h7.4a1 1 0 0 0 1-.9L17.5 7" />
+      <path d="M10.3 11v5.2M13.7 11v5.2" />
+    </svg>
+  );
+}
+
 export function ExchangeIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base} {...props}>

@@ -12,6 +12,7 @@ import {
 import type { BankCode, Currency, Wallet, WalletKind, WalletTransactionType } from "../api/types";
 import { extractErrorMessage } from "../api/client";
 import { ErrorText, FieldLabel, NeoButton, NeoCard, NeoInput, NeoSelect, PageHeader } from "../components/ui";
+import { PencilIcon, TrashIcon } from "../components/icons";
 
 // Ya no se listan bancos individuales de Perú/Chile: el banco concreto
 // (BCP, BancoEstado, etc.) se escribe en el nombre o la descripción de la
@@ -122,7 +123,11 @@ export default function WalletsPage() {
     onError: (err) => setExpenseError(extractErrorMessage(err)),
   });
 
-  const selectedWallet = wallets?.find((w) => w.id === selectedWalletId) ?? null;
+  // La selección (para filtrar el historial) es independiente de "gestionar"
+  // una cartera (editar/eliminar): un click en la card ya no abre esos
+  // paneles, solo lo hacen los íconos de lápiz/tacho de cada card.
+  const [managing, setManaging] = useState<{ id: string; mode: "edit" | "delete" } | null>(null);
+  const managedWallet = managing ? wallets?.find((w) => w.id === managing.id) ?? null : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -130,21 +135,49 @@ export default function WalletsPage() {
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {wallets?.map((w) => (
-          <button
+          <NeoCard
             key={w.id}
-            onClick={() => setSelectedWalletId((prev) => (prev === w.id ? "" : w.id))}
-            className="text-left"
+            className={`relative cursor-pointer ${
+              selectedWalletId === w.id ? "outline outline-2 outline-[var(--accent)]" : ""
+            }`}
           >
-            <NeoCard className={selectedWalletId === w.id ? "outline outline-2 outline-[var(--accent)]" : ""}>
+            <button
+              onClick={() => setSelectedWalletId((prev) => (prev === w.id ? "" : w.id))}
+              className="text-left w-full cursor-pointer"
+            >
               <p className="text-xs text-[var(--text-secondary)]">
                 {w.kind === "cash" ? "Efectivo" : BANKS.find((b) => b.value === w.bank_code)?.label ?? "Banco"}
               </p>
-              <p className="font-semibold">{w.label}</p>
+              <p className="font-semibold pr-14">{w.label}</p>
               <p className="text-2xl font-semibold mt-2">
                 {w.balance} <span className="text-sm text-[var(--text-secondary)]">{w.currency}</span>
               </p>
-            </NeoCard>
-          </button>
+            </button>
+            <div className="absolute bottom-3 right-3 flex gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setManaging({ id: w.id, mode: "edit" });
+                }}
+                title="Editar cartera"
+                aria-label="Editar cartera"
+                className="neo-btn w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
+              >
+                <PencilIcon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setManaging({ id: w.id, mode: "delete" });
+                }}
+                title="Eliminar cartera"
+                aria-label="Eliminar cartera"
+                className="neo-btn w-8 h-8 rounded-full flex items-center justify-center text-[var(--danger)] cursor-pointer"
+              >
+                <TrashIcon className="w-4 h-4" />
+              </button>
+            </div>
+          </NeoCard>
         ))}
       </div>
 
@@ -169,17 +202,19 @@ export default function WalletsPage() {
         </NeoButton>
       </div>
 
-      {selectedWallet && (
-        <>
-          <WalletEditForm wallet={selectedWallet} />
-          <WalletDangerZone
-            wallet={selectedWallet}
-            onDeleted={() => {
-              setSelectedWalletId("");
-              queryClient.invalidateQueries({ queryKey: ["wallets"] });
-            }}
-          />
-        </>
+      {managedWallet && managing?.mode === "edit" && (
+        <WalletEditForm wallet={managedWallet} onClose={() => setManaging(null)} />
+      )}
+      {managedWallet && managing?.mode === "delete" && (
+        <WalletDangerZone
+          wallet={managedWallet}
+          onClose={() => setManaging(null)}
+          onDeleted={() => {
+            setManaging(null);
+            if (selectedWalletId === managedWallet.id) setSelectedWalletId("");
+            queryClient.invalidateQueries({ queryKey: ["wallets"] });
+          }}
+        />
       )}
 
       {activeForm === "create" && (
@@ -201,6 +236,11 @@ export default function WalletsPage() {
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
               />
+              {kind === "bank" && (
+                <p className="text-[11px] text-[var(--text-secondary)] mt-1">
+                  Especifica el banco concreto (BCP, BancoEstado, etc.) acá.
+                </p>
+              )}
             </div>
             <div>
               <FieldLabel>Moneda</FieldLabel>
@@ -217,22 +257,25 @@ export default function WalletsPage() {
                 <option value="bank">Cuenta bancaria</option>
               </NeoSelect>
             </div>
-            {kind === "bank" && (
-              <div>
-                <FieldLabel>País / tipo de cuenta</FieldLabel>
-                <NeoSelect value={bankCode} onChange={(e) => setBankCode(e.target.value as BankCode)} required>
-                  <option value="">Selecciona...</option>
-                  {BANKS.map((b) => (
-                    <option key={b.value} value={b.value}>
-                      {b.label}
-                    </option>
-                  ))}
-                </NeoSelect>
-                <p className="text-[11px] text-[var(--text-secondary)] mt-1">
-                  Especifica el banco concreto (BCP, BancoEstado, etc.) en el nombre o la descripción.
-                </p>
-              </div>
-            )}
+            {/* Siempre se reserva este slot del grid (aunque esté vacío en
+                "efectivo") para que el resto de campos no se reacomode al
+                cambiar el tipo de cartera. */}
+            <div className={kind === "bank" ? undefined : "invisible"} aria-hidden={kind !== "bank"}>
+              <FieldLabel>País de origen</FieldLabel>
+              <NeoSelect
+                value={bankCode}
+                onChange={(e) => setBankCode(e.target.value as BankCode)}
+                required={kind === "bank"}
+                disabled={kind !== "bank"}
+              >
+                <option value="">Selecciona...</option>
+                {BANKS.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.label}
+                  </option>
+                ))}
+              </NeoSelect>
+            </div>
             <div className="flex gap-2">
               <NeoButton type="submit" variant="accent" disabled={createMutation.isPending}>
                 Crear
@@ -413,7 +456,7 @@ export default function WalletsPage() {
   );
 }
 
-function WalletEditForm({ wallet }: { wallet: Wallet }) {
+function WalletEditForm({ wallet, onClose }: { wallet: Wallet; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [label, setLabel] = useState(wallet.label);
   const [description, setDescription] = useState(wallet.description ?? "");
@@ -470,7 +513,7 @@ function WalletEditForm({ wallet }: { wallet: Wallet }) {
         </div>
         {wallet.kind === "bank" && (
           <div>
-            <FieldLabel>País / tipo de cuenta</FieldLabel>
+            <FieldLabel>País de origen</FieldLabel>
             <NeoSelect value={bankCode} onChange={(e) => setBankCode(e.target.value as BankCode)}>
               {sameGroupBanks.map((b) => (
                 <option key={b.value} value={b.value}>
@@ -483,9 +526,12 @@ function WalletEditForm({ wallet }: { wallet: Wallet }) {
             </p>
           </div>
         )}
-        <div>
+        <div className="flex gap-2">
           <NeoButton type="submit" variant="accent" disabled={!dirty || saveMutation.isPending}>
             Guardar cambios
+          </NeoButton>
+          <NeoButton type="button" onClick={onClose}>
+            Cerrar
           </NeoButton>
         </div>
       </form>
@@ -494,7 +540,15 @@ function WalletEditForm({ wallet }: { wallet: Wallet }) {
   );
 }
 
-function WalletDangerZone({ wallet, onDeleted }: { wallet: Wallet; onDeleted: () => void }) {
+function WalletDangerZone({
+  wallet,
+  onDeleted,
+  onClose,
+}: {
+  wallet: Wallet;
+  onDeleted: () => void;
+  onClose: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [confirmLabel, setConfirmLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -529,14 +583,24 @@ function WalletDangerZone({ wallet, onDeleted }: { wallet: Wallet; onDeleted: ()
       </p>
 
       {hasBalance ? (
-        <p className="text-xs text-[var(--danger)]">
-          Esta cartera tiene saldo ({wallet.balance} {wallet.currency}). Retira o transfiere el dinero antes
-          de poder eliminarla.
-        </p>
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-[var(--danger)]">
+            Esta cartera tiene saldo ({wallet.balance} {wallet.currency}). Retira o transfiere el dinero
+            antes de poder eliminarla.
+          </p>
+          <NeoButton type="button" onClick={onClose} className="self-start">
+            Cerrar
+          </NeoButton>
+        </div>
       ) : !open ? (
-        <NeoButton variant="danger" onClick={() => setOpen(true)}>
-          Eliminar cartera
-        </NeoButton>
+        <div className="flex gap-3">
+          <NeoButton variant="danger" onClick={() => setOpen(true)}>
+            Eliminar cartera
+          </NeoButton>
+          <NeoButton type="button" onClick={onClose}>
+            Cerrar
+          </NeoButton>
+        </div>
       ) : (
         <div className="flex flex-col gap-3">
           <div>
@@ -557,14 +621,7 @@ function WalletDangerZone({ wallet, onDeleted }: { wallet: Wallet; onDeleted: ()
             >
               Confirmar eliminación
             </NeoButton>
-            <NeoButton
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                setConfirmLabel("");
-                setError(null);
-              }}
-            >
+            <NeoButton type="button" onClick={onClose}>
               Cancelar
             </NeoButton>
           </div>
