@@ -13,28 +13,25 @@ import type { BankCode, Currency, Wallet, WalletKind, WalletTransactionType } fr
 import { extractErrorMessage } from "../api/client";
 import { ErrorText, FieldLabel, NeoButton, NeoCard, NeoInput, NeoSelect, PageHeader } from "../components/ui";
 
-const BANKS: { value: BankCode; label: string; group: "Perú" | "Chile" }[] = [
-  { value: "pe_interbank", label: "Interbank", group: "Perú" },
-  { value: "pe_bcp", label: "BCP", group: "Perú" },
-  { value: "pe_bbva", label: "BBVA", group: "Perú" },
-  { value: "pe_scotiabank", label: "Scotiabank", group: "Perú" },
-  { value: "pe_santander", label: "Santander", group: "Perú" },
-  { value: "pe_banco_nacion", label: "Banco de la Nación", group: "Perú" },
-  { value: "pe_falabella", label: "Falabella", group: "Perú" },
-  { value: "pe_ripley", label: "Ripley", group: "Perú" },
-  { value: "cl_banco_estado", label: "BancoEstado", group: "Chile" },
-  { value: "cl_banco_de_chile", label: "Banco de Chile", group: "Chile" },
-  { value: "cl_santander", label: "Santander", group: "Chile" },
-  { value: "cl_scotiabank", label: "Scotiabank", group: "Chile" },
-  { value: "cl_falabella", label: "Falabella", group: "Chile" },
+// Ya no se listan bancos individuales de Perú/Chile: el banco concreto
+// (BCP, BancoEstado, etc.) se escribe en el nombre o la descripción de la
+// cartera. Global66/Revolut y similares no están atados a un país (manejan
+// varias divisas), así que van en su propia categoría.
+const BANKS: { value: BankCode; label: string }[] = [
+  { value: "pe", label: "Perú" },
+  { value: "cl", label: "Chile" },
+  { value: "global66", label: "Global66" },
+  { value: "revolut", label: "Revolut" },
+  { value: "other_virtual", label: "Otro banco virtual (multi-moneda)" },
 ];
 
 // Agrupa un banco por país (o "virtual" para los multi-moneda) para restringir
 // a qué bancos se puede cambiar al editar una cartera: no tiene sentido dejar
 // que una cartera de un país "pase" a otro con solo cambiar el banco.
+const VIRTUAL_BANKS = new Set<BankCode>(["global66", "revolut", "other_virtual"]);
+
 function bankGroup(code: BankCode): string {
-  const prefix = code.split("_")[0];
-  return prefix === "pe" || prefix === "cl" ? prefix : "virtual";
+  return VIRTUAL_BANKS.has(code) ? "virtual" : code;
 }
 
 const TRANSACTION_LABELS: Record<WalletTransactionType, string> = {
@@ -222,24 +219,18 @@ export default function WalletsPage() {
             </div>
             {kind === "bank" && (
               <div>
-                <FieldLabel>Banco</FieldLabel>
+                <FieldLabel>País / tipo de cuenta</FieldLabel>
                 <NeoSelect value={bankCode} onChange={(e) => setBankCode(e.target.value as BankCode)} required>
                   <option value="">Selecciona...</option>
-                  <optgroup label="Perú">
-                    {BANKS.filter((b) => b.group === "Perú").map((b) => (
-                      <option key={b.value} value={b.value}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Chile">
-                    {BANKS.filter((b) => b.group === "Chile").map((b) => (
-                      <option key={b.value} value={b.value}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </optgroup>
+                  {BANKS.map((b) => (
+                    <option key={b.value} value={b.value}>
+                      {b.label}
+                    </option>
+                  ))}
                 </NeoSelect>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-1">
+                  Especifica el banco concreto (BCP, BancoEstado, etc.) en el nombre o la descripción.
+                </p>
               </div>
             )}
             <div className="flex gap-2">
@@ -479,7 +470,7 @@ function WalletEditForm({ wallet }: { wallet: Wallet }) {
         </div>
         {wallet.kind === "bank" && (
           <div>
-            <FieldLabel>Banco</FieldLabel>
+            <FieldLabel>País / tipo de cuenta</FieldLabel>
             <NeoSelect value={bankCode} onChange={(e) => setBankCode(e.target.value as BankCode)}>
               {sameGroupBanks.map((b) => (
                 <option key={b.value} value={b.value}>
@@ -488,7 +479,7 @@ function WalletEditForm({ wallet }: { wallet: Wallet }) {
               ))}
             </NeoSelect>
             <p className="text-[11px] text-[var(--text-secondary)] mt-1">
-              Solo se puede cambiar a un banco del mismo país.
+              Solo se puede cambiar dentro del mismo país, o entre bancos multi-moneda.
             </p>
           </div>
         )}

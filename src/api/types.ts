@@ -2,21 +2,7 @@ export type AccountType = "personal" | "shared";
 export type AccountRole = "owner" | "member";
 export type Currency = "PEN" | "USD" | "CLP";
 export type WalletKind = "cash" | "bank";
-export type BankCode =
-  | "pe_interbank"
-  | "pe_bcp"
-  | "pe_bbva"
-  | "pe_scotiabank"
-  | "pe_santander"
-  | "pe_banco_nacion"
-  | "pe_falabella"
-  | "pe_ripley"
-  | "cl_banco_estado"
-  | "cl_banco_de_chile"
-  | "cl_santander"
-  | "cl_scotiabank"
-  | "cl_falabella"
-  | "other";
+export type BankCode = "pe" | "cl" | "global66" | "revolut" | "other_virtual";
 
 export type ExpenseCategory = "transporte" | "salud" | "comida" | "mercado" | "golosinas" | "servicios";
 
