@@ -79,14 +79,22 @@ export default function WalletsPage() {
   const [currency, setCurrency] = useState<Currency>("PEN");
   const [kind, setKind] = useState<WalletKind>("cash");
   const [bankCode, setBankCode] = useState<BankCode | "">("");
+  const [initialBalance, setInitialBalance] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: () =>
-      createWallet({ label, currency, kind, bank_code: kind === "bank" ? bankCode || null : null }),
+      createWallet({
+        label,
+        currency,
+        kind,
+        bank_code: kind === "bank" ? bankCode || null : null,
+        initial_balance: initialBalance || undefined,
+      }),
     onSuccess: () => {
       setLabel("");
       setBankCode("");
+      setInitialBalance("");
       setActiveForm(null);
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
     },
@@ -275,6 +283,15 @@ export default function WalletsPage() {
                   </option>
                 ))}
               </NeoSelect>
+            </div>
+            <div>
+              <FieldLabel>Saldo inicial (opcional)</FieldLabel>
+              <NeoInput
+                type="number"
+                step="0.01"
+                value={initialBalance}
+                onChange={(e) => setInitialBalance(e.target.value)}
+              />
             </div>
             <div className="flex gap-2">
               <NeoButton type="submit" variant="accent" disabled={createMutation.isPending}>

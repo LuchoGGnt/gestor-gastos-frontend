@@ -131,6 +131,7 @@ export async function createWallet(payload: {
   currency: string;
   kind: string;
   bank_code?: string | null;
+  initial_balance?: string;
 }): Promise<Wallet> {
   const { data } = await apiClient.post("/wallets", payload);
   return data;
