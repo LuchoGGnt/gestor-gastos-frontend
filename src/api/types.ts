@@ -175,3 +175,31 @@ export interface MyBalance {
   debt_due_date: string | null;
   others: OtherMemberBalance[];
 }
+
+export interface PaymentNotification {
+  settlement_id: string;
+  account_id: string;
+  account_name: string;
+  from_user_id: string;
+  from_user_name: string;
+  amount: string;
+  currency: Currency;
+  settlement_date: string;
+  pending_confirmation: boolean;
+}
+
+export type DueStatus = "overdue" | "due_soon" | "ok" | null;
+
+export interface DebtNotification {
+  account_id: string;
+  account_name: string;
+  amount: string;
+  currency: Currency;
+  debt_due_date: string | null;
+  due_status: DueStatus;
+}
+
+export interface Notifications {
+  payments: PaymentNotification[];
+  debts: DebtNotification[];
+}

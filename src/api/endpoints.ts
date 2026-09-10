@@ -7,6 +7,7 @@ import type {
   ExpenseCategory,
   Invitation,
   MyBalance,
+  Notifications,
   Settlement,
   Subcategory,
   User,
@@ -252,6 +253,11 @@ export async function confirmSettlement(settlementId: string, toWalletId?: strin
 
 export async function listMyBalances(): Promise<MyBalance[]> {
   const { data } = await apiClient.get("/settlements/my-balances");
+  return data;
+}
+
+export async function getNotifications(): Promise<Notifications> {
+  const { data } = await apiClient.get("/settlements/notifications");
   return data;
 }
 
