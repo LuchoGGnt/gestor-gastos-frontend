@@ -139,6 +139,7 @@ export default function WalletsPage() {
 
   const [withdrawBankTarget, setWithdrawBankTarget] = useState("");
   const [withdrawCashTarget, setWithdrawCashTarget] = useState("");
+  const withdrawBankWallet = wallets?.find((w) => w.id === withdrawBankTarget);
   const [withdrawAmountOut, setWithdrawAmountOut] = useState("");
   const [withdrawAmountIn, setWithdrawAmountIn] = useState("");
   const [withdrawNote, setWithdrawNote] = useState("");
@@ -180,23 +181,22 @@ export default function WalletsPage() {
         {wallets?.map((w) => (
           <NeoCard
             key={w.id}
+            // El click en cualquier parte de la card (no solo el texto) filtra
+            // el historial; los íconos paran la propagación para no disparar
+            // esto también.
+            onClick={() => setSelectedWalletId((prev) => (prev === w.id ? "" : w.id))}
             className={`relative cursor-pointer ${
               selectedWalletId === w.id ? "outline outline-2 outline-[var(--accent)]" : ""
             }`}
           >
-            <button
-              onClick={() => setSelectedWalletId((prev) => (prev === w.id ? "" : w.id))}
-              className="text-left w-full cursor-pointer"
-            >
-              <p className="text-xs text-[var(--text-secondary)]">
-                {w.kind === "cash" ? "Efectivo" : BANKS.find((b) => b.value === w.bank_code)?.label ?? "Banco"}
-              </p>
-              <p className="font-semibold pr-14">{w.label}</p>
-              <p className="text-2xl font-semibold mt-2">
-                {w.balance} <span className="text-sm text-[var(--text-secondary)]">{w.currency}</span>
-              </p>
-            </button>
-            <div className="absolute bottom-3 right-3 flex gap-1">
+            <p className="text-xs text-[var(--text-secondary)]">
+              {w.kind === "cash" ? "Efectivo" : BANKS.find((b) => b.value === w.bank_code)?.label ?? "Banco"}
+            </p>
+            <p className="font-semibold pr-14">{w.label}</p>
+            <p className="text-2xl font-semibold mt-2">
+              {w.balance} <span className="text-sm text-[var(--text-secondary)]">{w.currency}</span>
+            </p>
+            <div className="absolute bottom-3 right-3 flex gap-1.5">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -204,7 +204,7 @@ export default function WalletsPage() {
                 }}
                 title="Editar cartera"
                 aria-label="Editar cartera"
-                className="neo-btn w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
+                className="neo-btn w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-110 hover:text-[var(--accent)]"
               >
                 <PencilIcon className="w-4 h-4" />
               </button>
@@ -215,7 +215,7 @@ export default function WalletsPage() {
                 }}
                 title="Eliminar cartera"
                 aria-label="Eliminar cartera"
-                className="neo-btn w-8 h-8 rounded-full flex items-center justify-center text-[var(--danger)] cursor-pointer"
+                className="neo-btn w-8 h-8 rounded-full flex items-center justify-center text-[var(--danger)] cursor-pointer transition-transform hover:scale-110"
               >
                 <TrashIcon className="w-4 h-4" />
               </button>
@@ -285,11 +285,6 @@ export default function WalletsPage() {
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
               />
-              {kind === "bank" && (
-                <p className="text-[11px] text-[var(--text-secondary)] mt-1">
-                  Especifica el banco concreto (BCP, BancoEstado, etc.) acá.
-                </p>
-              )}
             </div>
             <div>
               <FieldLabel>Moneda</FieldLabel>
@@ -472,7 +467,12 @@ export default function WalletsPage() {
               <FieldLabel>Cuenta bancaria (origen)</FieldLabel>
               <NeoSelect
                 value={withdrawBankTarget}
-                onChange={(e) => setWithdrawBankTarget(e.target.value)}
+                onChange={(e) => {
+                  setWithdrawBankTarget(e.target.value);
+                  // La cartera de destino debe ser de la misma moneda: si ya
+                  // había una elegida de otra moneda, se limpia.
+                  setWithdrawCashTarget("");
+                }}
                 required
               >
                 <option value="">Selecciona...</option>
@@ -491,10 +491,11 @@ export default function WalletsPage() {
                 value={withdrawCashTarget}
                 onChange={(e) => setWithdrawCashTarget(e.target.value)}
                 required
+                disabled={!withdrawBankWallet}
               >
-                <option value="">Selecciona...</option>
+                <option value="">{withdrawBankWallet ? "Selecciona..." : "Elige antes la cuenta de origen"}</option>
                 {wallets
-                  ?.filter((w) => w.kind === "cash")
+                  ?.filter((w) => w.kind === "cash" && w.currency === withdrawBankWallet?.currency)
                   .map((w) => (
                     <option key={w.id} value={w.id}>
                       {w.label} ({w.currency})
