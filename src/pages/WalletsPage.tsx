@@ -137,6 +137,7 @@ export default function WalletsPage() {
 
   const [withdrawBankTarget, setWithdrawBankTarget] = useState("");
   const [withdrawCashTarget, setWithdrawCashTarget] = useState("");
+  const withdrawBankWallet = wallets?.find((w) => w.id === withdrawBankTarget);
   const [withdrawAmountOut, setWithdrawAmountOut] = useState("");
   const [withdrawAmountIn, setWithdrawAmountIn] = useState("");
   const [withdrawNote, setWithdrawNote] = useState("");
@@ -464,7 +465,12 @@ export default function WalletsPage() {
               <FieldLabel>Cuenta bancaria (origen)</FieldLabel>
               <NeoSelect
                 value={withdrawBankTarget}
-                onChange={(e) => setWithdrawBankTarget(e.target.value)}
+                onChange={(e) => {
+                  setWithdrawBankTarget(e.target.value);
+                  // La cartera de destino debe ser de la misma moneda: si ya
+                  // había una elegida de otra moneda, se limpia.
+                  setWithdrawCashTarget("");
+                }}
                 required
               >
                 <option value="">Selecciona...</option>
@@ -483,10 +489,11 @@ export default function WalletsPage() {
                 value={withdrawCashTarget}
                 onChange={(e) => setWithdrawCashTarget(e.target.value)}
                 required
+                disabled={!withdrawBankWallet}
               >
-                <option value="">Selecciona...</option>
+                <option value="">{withdrawBankWallet ? "Selecciona..." : "Elige antes la cuenta de origen"}</option>
                 {wallets
-                  ?.filter((w) => w.kind === "cash")
+                  ?.filter((w) => w.kind === "cash" && w.currency === withdrawBankWallet?.currency)
                   .map((w) => (
                     <option key={w.id} value={w.id}>
                       {w.label} ({w.currency})
